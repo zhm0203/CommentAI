@@ -271,6 +271,72 @@
             color: var(--muted);
         }
 
+        .top-comments-section .section-title {
+            margin-bottom: 6px;
+        }
+
+        #topCommentsList {
+            display: grid;
+            gap: 12px;
+        }
+
+        .top-comment {
+            display: flex;
+            gap: 14px;
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: linear-gradient(135deg, rgba(255, 77, 141, 0.05) 0%, rgba(139, 92, 246, 0.03) 100%);
+            box-shadow: 0 6px 16px rgba(116, 70, 139, 0.05);
+            transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease), border-color 0.25s var(--ease);
+            animation: cardReveal 0.5s var(--ease) both;
+        }
+
+        .top-comment:hover {
+            transform: translateY(-3px);
+            border-color: rgba(255, 168, 204, 0.85);
+            box-shadow: 0 12px 28px rgba(120, 64, 138, 0.1);
+        }
+
+        .top-comment .avatar {
+            width: 50px;
+            height: 50px;
+        }
+
+        .top-comment .comment-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .top-comment .username {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .top-comment .comment-text {
+            color: #584a64;
+            line-height: 1.7;
+            font-size: 14px;
+            word-break: break-word;
+        }
+
+        .top-comment .likes {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 30px;
+            padding: 0 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            background: linear-gradient(135deg, rgba(255, 77, 141, 1) 0%, rgba(139, 92, 246, 1) 100%);
+            box-shadow: 0 4px 10px rgba(181, 83, 184, 0.25);
+            margin-top: 8px;
+        }
+
         .comments-section {
             min-height: 240px;
         }
@@ -593,6 +659,12 @@
             <div id="statsGrid"></div>
         </div>
 
+        <div class="top-comments-section panel" id="topCommentsSection">
+            <div class="section-title">🔥 高赞评论 · 值得关注</div>
+            <div class="section-subtitle" style="margin-bottom: 16px;">展示点赞最多的评论，快速了解核心反馈</div>
+            <div id="topCommentsList"></div>
+        </div>
+
         <div class="comments-section panel">
             <h2 class="section-title">💬 全部评论</h2>
             <div id="commentsList"></div>
@@ -703,6 +775,32 @@
                     <div class="stat-label">中性评价</div>
                 </div>
             `;
+        }
+
+        function renderTopComments() {
+            const topCommentsList = document.getElementById('topCommentsList');
+            
+            // 按点赞数排序，取前 5 条，且至少有一定点赞数才有意义（比如至少 10 赞）
+            const topComments = [...allComments]
+                .sort((a, b) => b.likes - a.likes)
+                .filter(comment => comment.likes > 0)
+                .slice(0, 5);
+            
+            if (!topComments.length) {
+                topCommentsList.innerHTML = `<div class="no-results">暂无高赞评论</div>`;
+                return;
+            }
+
+            topCommentsList.innerHTML = topComments.map((comment, index) => `
+                <div class="top-comment" id="top-comment-${comment.id}" style="animation-delay: ${index * 0.06}s">
+                    <img src="${comment.avatar}" class="avatar" alt="${comment.username}">
+                    <div class="comment-content">
+                        <div class="username">${comment.username}</div>
+                        <div class="comment-text">${comment.content}</div>
+                        <div class="likes">🔥 ${comment.likes} 赞</div>
+                    </div>
+                </div>
+            `).join('');
         }
 
         function renderComments(comments) {
@@ -821,6 +919,7 @@
                 allComments = [...allComments, ...imported];
                 currentSummary = summarizeComments(allComments);
                 renderSummary('all');
+                renderTopComments();
                 renderComments(allComments);
                 toggleImportModal();
                 alert(`成功导入 ${imported.length} 条评论！`);
@@ -834,6 +933,7 @@
                 allComments = JSON.parse(JSON.stringify(defaultComments));
                 currentSummary = summarizeComments(allComments);
                 renderSummary('all');
+                renderTopComments();
                 renderComments(allComments);
                 document.getElementById('searchInput').value = '';
                 document.getElementById('searchResults').innerHTML = '';
@@ -844,6 +944,7 @@
             allComments = JSON.parse(JSON.stringify(defaultComments));
             currentSummary = summarizeComments(allComments);
             renderSummary('all');
+            renderTopComments();
             renderComments(allComments);
         });
 
