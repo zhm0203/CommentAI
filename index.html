@@ -258,10 +258,11 @@
         }
 
         .stat-value {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 800;
             color: var(--text);
             margin-bottom: 6px;
+            line-height: 1.2;
         }
 
         .stat-label {
@@ -659,12 +660,18 @@
             const negative = sentimentCounts.negative;
             const neutral = sentimentCounts.neutral;
             
+            const positivePercent = total > 0 ? Math.round(positive / total * 100) : 0;
+            const negativePercent = total > 0 ? Math.round(negative / total * 100) : 0;
+            const neutralPercent = total > 0 ? Math.round(neutral / total * 100) : 0;
+            
             return {
                 total_comments: total,
                 positive: positive,
                 negative: negative,
                 neutral: neutral,
-                positive_rate: total > 0 ? Math.round(positive / total * 100 * 10) / 10 : 0,
+                positivePercent: positivePercent,
+                negativePercent: negativePercent,
+                neutralPercent: neutralPercent,
                 overall_sentiment: positive > negative ? 'positive' : negative > positive ? 'negative' : 'neutral'
             };
         }
@@ -684,20 +691,16 @@
                     <div class="stat-label">总评论数</div>
                 </div>
                 <div class="stat-card positive ${activeFilter === 'positive' ? 'active' : ''}" onclick="filterBySentiment('positive')">
-                    <div class="stat-value">${summary.positive}</div>
+                    <div class="stat-value">${summary.positive} (${summary.positivePercent}%)</div>
                     <div class="stat-label">正面评价</div>
                 </div>
                 <div class="stat-card negative ${activeFilter === 'negative' ? 'active' : ''}" onclick="filterBySentiment('negative')">
-                    <div class="stat-value">${summary.negative}</div>
+                    <div class="stat-value">${summary.negative} (${summary.negativePercent}%)</div>
                     <div class="stat-label">负面评价</div>
                 </div>
                 <div class="stat-card neutral ${activeFilter === 'neutral' ? 'active' : ''}" onclick="filterBySentiment('neutral')">
-                    <div class="stat-value">${summary.neutral}</div>
+                    <div class="stat-value">${summary.neutral} (${summary.neutralPercent}%)</div>
                     <div class="stat-label">中性评价</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${summary.positive_rate}%</div>
-                    <div class="stat-label">好评率</div>
                 </div>
             `;
         }
