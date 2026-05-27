@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小红书评论区智能分析</title>
+    <style>
+        :root {
+            --primary: #ff4d8d;
+            --secondary: #8b5cf6;
+            --text: #2d1f3d;
+            --muted: #8b7b9a;
+            --bg: linear-gradient(135deg, #fff0f5 0%, #f5f0ff 50%, #fff5f0 100%);
+            --panel: rgba(255, 255, 255, 0.85);
+            --panel-strong: rgba(255, 255, 255, 0.92);
+            --line: rgba(255, 180, 200, 0.45);
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px 16px;
+        }
+
+        header {
+            text-align: center;
+            padding: 32px 0;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, rgba(255, 77, 141, 0.95) 0%, rgba(139, 92, 246, 0.95) 100%);
+            border-radius: 28px;
+            box-shadow: 0 20px 40px rgba(181, 83, 184, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            filter: blur(20px);
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 150px;
+            height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            filter: blur(15px);
+        }
+
+        .hero-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 14px;
+            backdrop-filter: blur(10px);
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .hero-subtitle {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.88);
+            font-weight: 400;
+        }
+
+        .panel {
+            background: var(--panel);
+            border-radius: 22px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid var(--line);
+            box-shadow: 0 12px 32px rgba(116, 70, 139, 0.06);
+            backdrop-filter: blur(10px);
+        }
+
+        .section-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .section-subtitle {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        #searchInput {
+            flex: 1;
+            min-width: 200px;
+            padding: 14px 18px;
+            border: 1.5px solid rgba(255, 180, 200, 0.6);
+            border-radius: 16px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+            background: rgba(255, 255, 255, 0.85);
+        }
+
+        #searchInput:focus {
+            border-color: rgba(255, 77, 141, 0.6);
+            box-shadow: 0 0 0 4px rgba(255, 77, 141, 0.1);
+        }
+
+        .action-btn {
+            position: relative;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 16px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease);
+            overflow: hidden;
+        }
+
+        .action-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.4s var(--ease);
+        }
+
+        .action-btn:hover::before {
+            left: 100%;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .action-btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-search {
+            background: linear-gradient(135deg, #ff4d8d 0%, #ff6b9d 100%);
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(255, 77, 141, 0.35);
+        }
+
+        .btn-import {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-clear {
+            background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35);
+        }
+
+        .btn-secondary {
+            background: rgba(200, 190, 210, 0.8);
+            color: var(--text);
+            box-shadow: 0 8px 20px rgba(150, 140, 160, 0.2);
+        }
+
+        .summary-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 20px;
+        }
+
+        #statsGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            position: relative;
+            padding: 20px;
+            border-radius: 18px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.28s var(--ease), box-shadow 0.28s var(--ease), border-color 0.28s var(--ease);
+            border: 2px solid transparent;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 8px 20px rgba(116, 70, 139, 0.06);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 14px 28px rgba(116, 70, 139, 0.1);
+        }
+
+        .stat-card.active {
+            border-color: rgba(255, 77, 141, 0.6);
+            box-shadow: 0 0 0 3px rgba(255, 77, 141, 0.08);
+        }
+
+        .stat-card.positive {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%);
+        }
+
+        .stat-card.negative {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%);
+        }
+
+        .stat-card.neutral {
+            background: linear-gradient(135deg, rgba(107, 114, 128, 0.1) 0%, rgba(75, 85, 99, 0.05) 100%);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .keywords {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .keywords strong {
+            font-size: 14px;
+            color: var(--muted);
+            margin-right: 4px;
+        }
+
+        .keyword-tag {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, rgba(255, 77, 141, 0.95) 0%, rgba(139, 92, 246, 0.95) 100%);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            box-shadow: 0 10px 22px rgba(181, 83, 184, 0.18);
+            transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease);
+        }
+
+        .keyword-tag:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 24px rgba(181, 83, 184, 0.22);
+        }
+
+        .comments-section {
+            min-height: 240px;
+        }
+
+        #commentsList {
+            display: grid;
+            gap: 14px;
+        }
+
+        .comment {
+            display: flex;
+            gap: 16px;
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: var(--panel-strong);
+            box-shadow: 0 8px 22px rgba(116, 70, 139, 0.06);
+            transition: transform 0.28s var(--ease), box-shadow 0.28s var(--ease), border-color 0.28s var(--ease), background 0.28s var(--ease);
+            animation: cardReveal 0.5s var(--ease) both;
+        }
+
+        .comment:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 168, 204, 0.95);
+            box-shadow: 0 18px 30px rgba(120, 64, 138, 0.1);
+            background: rgba(255, 255, 255, 0.96);
+        }
+
+        .comment.highlight {
+            animation: pulseHighlight 1.25s var(--ease);
+            border-color: rgba(255, 171, 82, 0.75);
+        }
+
+        @keyframes pulseHighlight {
+            0% { transform: scale(1); background: rgba(255, 249, 221, 0.92); }
+            40% { transform: scale(1.01); background: rgba(255, 241, 184, 0.96); }
+            100% { transform: scale(1); background: var(--panel-strong); }
+        }
+
+        @keyframes cardReveal {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .avatar {
+            width: 54px;
+            height: 54px;
+            border-radius: 18px;
+            flex-shrink: 0;
+            box-shadow: 0 10px 18px rgba(140, 77, 158, 0.14);
+        }
+
+        .comment-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .comment-body {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .username {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .time {
+            flex-shrink: 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .comment-text {
+            color: #584a64;
+            line-height: 1.8;
+            font-size: 15px;
+            word-break: break-word;
+        }
+
+        .likes {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #ff4d8d;
+            background: rgba(255, 77, 141, 0.09);
+            flex-shrink: 0;
+        }
+
+        .search-results {
+            margin-top: 12px;
+            padding: 16px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(255, 245, 221, 0.92) 0%, rgba(255, 237, 207, 0.95) 100%);
+            border: 1px solid rgba(255, 216, 140, 0.82);
+            box-shadow: 0 12px 24px rgba(255, 192, 81, 0.12);
+            animation: cardReveal 0.45s var(--ease);
+        }
+
+        .search-results h3 {
+            color: #8a5a00;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(45, 31, 61, 0.6);
+            backdrop-filter: blur(8px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 500px;
+            padding: 28px;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(45, 31, 61, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            animation: modalIn 0.28s var(--ease);
+        }
+
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: translateY(16px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .modal-desc,
+        .modal-example {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .modal-desc {
+            margin-bottom: 6px;
+        }
+
+        .modal-example {
+            margin-bottom: 18px;
+        }
+
+        textarea#importTextarea {
+            width: 100%;
+            height: 200px;
+            padding: 16px 18px;
+            border: 1.5px solid rgba(233, 213, 225, 0.95);
+            border-radius: 18px;
+            resize: vertical;
+            font-size: 14px;
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.88);
+            outline: none;
+            transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+            margin-bottom: 18px;
+        }
+
+        textarea#importTextarea:focus {
+            border-color: rgba(255, 92, 145, 0.62);
+            box-shadow: 0 0 0 5px rgba(255, 92, 145, 0.09);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-actions .action-btn {
+            flex: 1;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 16px 12px;
+            }
+
+            header {
+                padding: 24px 16px;
+            }
+
+            header h1 {
+                font-size: 24px;
+            }
+
+            .panel {
+                padding: 18px;
+            }
+
+            .search-box {
+                flex-direction: column;
+            }
+
+            #searchInput {
+                min-width: 100%;
+            }
+
+            .action-btn {
+                width: 100%;
+            }
+
+            .comment {
+                flex-direction: column;
+            }
+
+            .comment-header {
+                flex-direction: row;
+                align-items: center;
+            }
+
+            .comment-body {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .modal-card {
+                padding: 22px;
+            }
+
+            .modal-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="hero-badge">评论洞察实验室 · AI Summary Search</div>
+            <h1>💬 小红书评论区智能分析</h1>
+            <p class="hero-subtitle">把密集评论区变成轻盈、好读、可检索的内容面板，让总结、筛选和跳转都更顺手。</p>
+        </header>
+
+        <div class="search-section panel">
+            <div class="section-heading">
+                <div>
+                    <div class="section-title">✨ 智能检索工作台</div>
+                    <div class="section-subtitle">输入关键词，快速定位重点观点、情绪和具体评论。</div>
+                </div>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索关键词，如：敏感肌、价格、效果...">
+                <button class="action-btn btn-search" onclick="searchComments()">🔍 搜索</button>
+                <button class="action-btn btn-import" onclick="toggleImportModal()">📝 导入评论</button>
+                <button class="action-btn btn-clear" onclick="clearComments()">🗑️ 清空</button>
+            </div>
+            <div id="searchResults"></div>
+        </div>
+
+        <div id="importModal" class="modal">
+            <div class="modal-card">
+                <h2 class="modal-title">📝 导入评论数据</h2>
+                <p class="modal-desc">从小红书复制评论，每行一条，格式为“用户名 | 评论内容 | 点赞数”。</p>
+                <p class="modal-example">示例：小明|这个产品真好用！|234</p>
+                <textarea id="importTextarea" placeholder="粘贴评论数据..."></textarea>
+                <div class="modal-actions">
+                    <button class="action-btn btn-search" onclick="importComments()">确认导入</button>
+                    <button class="action-btn btn-secondary" onclick="toggleImportModal()">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-section panel" id="summarySection">
+            <div class="summary-title">📊 评论综合分析</div>
+            <div id="statsGrid"></div>
+            <div class="keywords">
+                <strong>热门关键词：</strong>
+                <span id="keywords"></span>
+            </div>
+        </div>
+
+        <div class="comments-section panel">
+            <h2 class="section-title">💬 全部评论</h2>
+            <div id="commentsList"></div>
+        </div>
+    </div>
+
+    <script>
+        let allComments = [];
+        let currentSummary = null;
+        let currentFilter = 'all';
+
+        const defaultComments = [
+            {"id": 1, "username": "护肤达人", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=1", "content": "真的超级难用！用了一次脸上就开始泛红发痒，过敏了！", "likes": 2345, "time": "2小时前"},
+            {"id": 2, "username": "美妆小白", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=2", "content": "我也是！用了脸颊刺痛，之前还以为是我皮肤的问题", "likes": 1567, "time": "3小时前"},
+            {"id": 3, "username": "敏感肌救星", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=3", "content": "理肤泉不是号称敏感肌专用吗？怎么会这样？", "likes": 890, "time": "4小时前"},
+            {"id": 4, "username": "成分党来报道", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=4", "content": "查了成分，里面有致痘成分，不适合油痘肌", "likes": 678, "time": "5小时前"},
+            {"id": 5, "username": "踩雷专业户", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=5", "content": "我也踩雷了！用完脸上起小疹子，赶紧停了", "likes": 543, "time": "5小时前"},
+            {"id": 6, "username": "混油肌分享", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=6", "content": "混油肌表示太油腻了，吸收不了，闷痘", "likes": 432, "time": "6小时前"},
+            {"id": 7, "username": "干皮实测", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=7", "content": "干皮觉得还好，不过确实没什么效果", "likes": 321, "time": "6小时前"},
+            {"id": 8, "username": "理性分析", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=8", "content": "可能是肤质问题吧，我用着还行", "likes": 234, "time": "7小时前"},
+            {"id": 9, "username": "护肤新手", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=9", "content": "救命！刚买还没开封，现在不敢用了", "likes": 567, "time": "8小时前"},
+            {"id": 10, "username": "用过的说说", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=10", "content": "我用特护霜没问题，就是这个B5面霜不行", "likes": 456, "time": "8小时前"},
+            {"id": 11, "username": "求推荐替代", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=11", "content": "有没有类似但更温和的面霜推荐？", "likes": 789, "time": "9小时前"},
+            {"id": 12, "username": "回购三次的人", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=12", "content": "我用了三瓶了，感觉很好啊，维稳效果不错", "likes": 345, "time": "10小时前"},
+            {"id": 13, "username": "成分科普", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=13", "content": "B5本身没问题，可能是配方里的其他成分", "likes": 234, "time": "11小时前"},
+            {"id": 14, "username": "皮肤科医生", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=14", "content": "建议先在耳后测试，每个人耐受不同", "likes": 567, "time": "12小时前"},
+            {"id": 15, "username": "真心劝退", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=15", "content": "真心劝退，我用完烂脸了，养了半个月才好", "likes": 890, "time": "13小时前"},
+            {"id": 16, "username": "冬天必备", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=16", "content": "冬天用挺滋润的啊，夏天可能有点油", "likes": 234, "time": "14小时前"},
+            {"id": 17, "username": "油痘肌慎入", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=17", "content": "油痘肌真的别碰，闷了我一脸闭口", "likes": 456, "time": "15小时前"},
+            {"id": 18, "username": "敏皮亲妈", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=18", "content": "我敏感肌用着挺好的，能缓解泛红", "likes": 345, "time": "16小时前"},
+            {"id": 19, "username": "搓泥严重", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=19", "content": "搓泥太严重了，根本没法上妆", "likes": 567, "time": "17小时前"},
+            {"id": 20, "username": "性价比分析", "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=20", "content": "性价比不高，不如买其他牌子", "likes": 234, "time": "18小时前"}
+        ];
+
+        function analyzeSentiment(text) {
+            const positiveWords = ['好', '棒', '赞', '喜欢', '推荐', '舒服', '满意', '好用', '水润', '安全', '划算', '温和', '滑', '好闻', '吸收', '不错', '滋润', '维稳', '缓解', '挺好', '没问题'];
+            const negativeWords = ['差', '不好', '不明显', '过敏', '纠结', '假货', '怕', '难用', '刺痛', '泛红', '发痒', '烂脸', '踩雷', '闷痘', '油腻', '搓泥', '闭口', '疹子', '没用', '慎入', '劝退'];
+            
+            const words = text.split('');
+            let posCount = 0, negCount = 0;
+            
+            for (let i = 0; i < words.length; i++) {
+                if (positiveWords.includes(words[i])) posCount++;
+                if (negativeWords.includes(words[i])) negCount++;
+            }
+            
+            for (let i = 0; i < text.length - 1; i++) {
+                const twoChar = text.substr(i, 2);
+                if (positiveWords.includes(twoChar)) posCount++;
+                if (negativeWords.includes(twoChar)) negCount++;
+            }
+            
+            if (posCount > negCount) return 'positive';
+            else if (negCount > posCount) return 'negative';
+            else return 'neutral';
+        }
+
+        function summarizeComments(commentList) {
+            const sentiments = commentList.map(c => analyzeSentiment(c.content));
+            const sentimentCounts = { positive: 0, negative: 0, neutral: 0 };
+            sentiments.forEach(s => sentimentCounts[s]++);
+            
+            const allText = commentList.map(c => c.content).join(' ');
+            const words = [];
+            for (let i = 0; i < allText.length - 1; i++) {
+                words.push(allText.substr(i, 2));
+            }
+            
+            const stopWords = ['的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '很', '也', '这', '那', '你', '说', '要', '会', '看', '好', '吗', '吧', '呢', '这个', '真的', '可以', '就是', '还是', '觉得', '因为', '所以', '但是', '只是', '已经', '然后', '其实', '非常', '特别', '超级', '太', '最', '更', '比较', '有点', '稍微', '真', '挺', '什么', '怎么', '为什么', '这样', '那样', '这么', '那么', '啊', '呀', '哦', '啦', '嘛', '哈'];
+            
+            const keywords = words.filter(w => !stopWords.includes(w));
+            const keywordCounts = {};
+            keywords.forEach(w => keywordCounts[w] = (keywordCounts[w] || 0) + 1);
+            
+            const topKeywords = Object.entries(keywordCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+            
+            const total = commentList.length;
+            const positive = sentimentCounts.positive;
+            const negative = sentimentCounts.negative;
+            const neutral = sentimentCounts.neutral;
+            
+            return {
+                total_comments: total,
+                positive: positive,
+                negative: negative,
+                neutral: neutral,
+                positive_rate: total > 0 ? Math.round(positive / total * 100 * 10) / 10 : 0,
+                top_keywords: topKeywords,
+                overall_sentiment: positive > negative ? 'positive' : negative > positive ? 'negative' : 'neutral'
+            };
+        }
+
+        function renderSummary(activeFilter) {
+            const summary = currentSummary;
+            const statsGrid = document.getElementById('statsGrid');
+            const keywordsSpan = document.getElementById('keywords');
+
+            if (!summary) {
+                statsGrid.innerHTML = '';
+                keywordsSpan.innerHTML = '';
+                return;
+            }
+
+            statsGrid.innerHTML = `
+                <div class="stat-card ${activeFilter === 'all' ? 'active' : ''}" onclick="filterBySentiment('all')">
+                    <div class="stat-value">${summary.total_comments}</div>
+                    <div class="stat-label">总评论数</div>
+                </div>
+                <div class="stat-card positive ${activeFilter === 'positive' ? 'active' : ''}" onclick="filterBySentiment('positive')">
+                    <div class="stat-value">${summary.positive}</div>
+                    <div class="stat-label">正面评价</div>
+                </div>
+                <div class="stat-card negative ${activeFilter === 'negative' ? 'active' : ''}" onclick="filterBySentiment('negative')">
+                    <div class="stat-value">${summary.negative}</div>
+                    <div class="stat-label">负面评价</div>
+                </div>
+                <div class="stat-card neutral ${activeFilter === 'neutral' ? 'active' : ''}" onclick="filterBySentiment('neutral')">
+                    <div class="stat-value">${summary.neutral}</div>
+                    <div class="stat-label">中性评价</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${summary.positive_rate}%</div>
+                    <div class="stat-label">好评率</div>
+                </div>
+            `;
+
+            keywordsSpan.innerHTML = summary.top_keywords.map(kw => 
+                `<span class="keyword-tag">${kw[0]} (${kw[1]})</span>`
+            ).join('');
+        }
+
+        function renderComments(comments) {
+            const commentsList = document.getElementById('commentsList');
+            if (!comments.length) {
+                commentsList.innerHTML = `<div class="no-results">暂时没有可展示的评论内容</div>`;
+                return;
+            }
+
+            commentsList.innerHTML = comments.map((comment, index) => `
+                <div class="comment" id="comment-${comment.id}" style="animation-delay: ${index * 0.04}s">
+                    <img src="${comment.avatar}" class="avatar" alt="${comment.username}">
+                    <div class="comment-content">
+                        <div class="comment-header">
+                            <span class="username">${comment.username}</span>
+                            <span class="time">${comment.time}</span>
+                        </div>
+                        <div class="comment-body">
+                            <div class="comment-text">${comment.content}</div>
+                            <span class="likes">❤️ ${comment.likes}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterBySentiment(sentiment) {
+            currentFilter = sentiment;
+            renderSummary(sentiment);
+            
+            let filtered = allComments;
+            if (sentiment !== 'all') {
+                filtered = allComments.filter(c => analyzeSentiment(c.content) === sentiment);
+            }
+            renderComments(filtered);
+            
+            const sectionTitle = document.querySelector('.comments-section h2');
+            const titles = {
+                'all': '💬 全部评论',
+                'positive': '😊 正面评价',
+                'negative': '😔 负面评价',
+                'neutral': '😐 中性评价'
+            };
+            sectionTitle.textContent = titles[sentiment];
+        }
+
+        function searchComments() {
+            const query = document.getElementById('searchInput').value.trim();
+            const searchResults = document.getElementById('searchResults');
+            
+            if (!query) {
+                searchResults.innerHTML = '';
+                filterBySentiment(currentFilter);
+                return;
+            }
+
+            const results = allComments.filter(c => c.content.toLowerCase().includes(query.toLowerCase()));
+            
+            if (results.length > 0) {
+                const summary = summarizeComments(results);
+                searchResults.innerHTML = `
+                    <div class="search-results">
+                        <h3>🔍 搜索结果：找到 ${results.length} 条相关评论</h3>
+                        <p style="margin-top: 8px; font-size: 14px; color: #8a5a00;">
+                            正面评价: ${summary.positive} | 负面评价: ${summary.negative} | 中性评价: ${summary.neutral}
+                        </p>
+                    </div>
+                `;
+                renderComments(results);
+            } else {
+                searchResults.innerHTML = `<div class="search-results"><h3>😔 未找到包含 "${query}" 的评论</h3></div>`;
+                renderComments([]);
+            }
+        }
+
+        function toggleImportModal() {
+            const modal = document.getElementById('importModal');
+            modal.classList.toggle('active');
+            if (!modal.classList.contains('active')) {
+                document.getElementById('importTextarea').value = '';
+            }
+        }
+
+        function importComments() {
+            const textarea = document.getElementById('importTextarea');
+            const text = textarea.value.trim();
+            
+            if (!text) {
+                alert('请输入评论数据');
+                return;
+            }
+
+            const lines = text.split('\n').filter(l => l.trim());
+            const imported = [];
+            let maxId = allComments.length > 0 ? Math.max(...allComments.map(c => c.id)) : 0;
+
+            lines.forEach((line, index) => {
+                const parts = line.split('|');
+                const username = parts[0]?.trim() || `用户${maxId + index + 1}`;
+                const content = parts[1]?.trim() || '';
+                const likes = parseInt(parts[2]?.trim()) || 0;
+                
+                if (content) {
+                    imported.push({
+                        id: maxId + index + 1,
+                        username: username,
+                        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${maxId + index + 1}`,
+                        content: content,
+                        likes: likes,
+                        time: '刚刚'
+                    });
+                }
+            });
+
+            if (imported.length > 0) {
+                allComments = [...allComments, ...imported];
+                currentSummary = summarizeComments(allComments);
+                renderSummary('all');
+                renderComments(allComments);
+                toggleImportModal();
+                alert(`成功导入 ${imported.length} 条评论！`);
+            } else {
+                alert('未找到有效的评论数据');
+            }
+        }
+
+        function clearComments() {
+            if (confirm('确定要清空评论并恢复示例数据吗？')) {
+                allComments = JSON.parse(JSON.stringify(defaultComments));
+                currentSummary = summarizeComments(allComments);
+                renderSummary('all');
+                renderComments(allComments);
+                document.getElementById('searchInput').value = '';
+                document.getElementById('searchResults').innerHTML = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            allComments = JSON.parse(JSON.stringify(defaultComments));
+            currentSummary = summarizeComments(allComments);
+            renderSummary('all');
+            renderComments(allComments);
+        });
+
+        document.getElementById('searchInput').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                searchComments();
+            }
+        });
+    </script>
+</body>
+</html>
