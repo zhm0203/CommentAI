@@ -337,6 +337,57 @@
             margin-top: 8px;
         }
 
+        .insight-card {
+            display: flex;
+            gap: 12px;
+            padding: 16px 18px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            animation: cardReveal 0.5s var(--ease) both;
+        }
+
+        .insight-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .insight-icon {
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .insight-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .insight-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .insight-text {
+            font-size: 14px;
+            color: #584a64;
+            line-height: 1.6;
+        }
+
+        .insight-positive {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(34, 197, 94, 0.06) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+        }
+
+        .insight-negative {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(220, 38, 38, 0.06) 100%);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        .insight-neutral {
+            background: linear-gradient(135deg, rgba(107, 114, 128, 0.1) 0%, rgba(75, 85, 99, 0.05) 100%);
+            border: 1px solid rgba(107, 114, 128, 0.2);
+        }
+
         .comments-section {
             min-height: 240px;
         }
@@ -659,6 +710,12 @@
             <div id="statsGrid"></div>
         </div>
 
+        <div class="insights-section panel" id="insightsSection">
+            <div class="section-title">💡 评论区智能总结</div>
+            <div class="section-subtitle" style="margin-bottom: 16px;">提炼核心观点，快速把握高赞反馈</div>
+            <div id="insightsContent"></div>
+        </div>
+
         <div class="top-comments-section panel" id="topCommentsSection">
             <div class="section-title">🔥 高赞评论 · 值得关注</div>
             <div class="section-subtitle" style="margin-bottom: 16px;">展示点赞最多的评论，快速了解核心反馈</div>
@@ -803,6 +860,116 @@
             `).join('');
         }
 
+        function renderInsights() {
+            const insightsContent = document.getElementById('insightsContent');
+            
+            const comments = [...allComments];
+            if (comments.length === 0) {
+                insightsContent.innerHTML = `<div class="no-results">暂无评论数据</div>`;
+                return;
+            }
+
+            const topComments = [...comments]
+                .sort((a, b) => b.likes - a.likes)
+                .filter(c => c.likes > 0);
+
+            const positiveComments = comments.filter(c => analyzeSentiment(c.content) === 'positive');
+            const negativeComments = comments.filter(c => analyzeSentiment(c.content) === 'negative');
+            const neutralComments = comments.filter(c => analyzeSentiment(c.content) === 'neutral');
+
+            const insights = [];
+
+            // 1. 总体趋势
+            const totalLikes = comments.reduce((sum, c) => sum + c.likes, 0);
+            const avgLikes = Math.round(totalLikes / comments.length);
+            insights.push({
+                type: 'neutral',
+                icon: '📊',
+                title: '数据概览',
+                text: `共 ${comments.length} 条评论，累计 ${totalLikes} 个点赞，平均每条 ${avgLikes} 赞。`
+            });
+
+            // 2. 高赞核心反馈
+            if (topComments.length > 0) {
+                const topComment = topComments[0];
+                insights.push({
+                    type: 'neutral',
+                    icon: '🔥',
+                    title: '最受关注',
+                    text: `最受关注的评论来自「${topComment.username}」，获得 ${topComment.likes} 个赞：「${topComment.content}」`
+                });
+            }
+
+            // 3. 正面反馈总结
+            if (positiveComments.length > 0) {
+                const positiveTexts = positiveComments.map(c => c.content).join('');
+                let positiveTheme = '用户总体感觉不错';
+                if (positiveTexts.includes('维稳') || positiveTexts.includes('缓解') || positiveTexts.includes('温和')) {
+                    positiveTheme = '用户反馈产品温和、有维稳效果';
+                } else if (positiveTexts.includes('滋润') || positiveTexts.includes('水润')) {
+                    positiveTheme = '用户反馈产品滋润、保湿效果好';
+                }
+                insights.push({
+                    type: 'positive',
+                    icon: '😊',
+                    title: '好评亮点',
+                    text: `有 ${positiveComments.length} 条正面评价，${positiveTheme}。`
+                });
+            }
+
+            // 4. 负面反馈总结
+            if (negativeComments.length > 0) {
+                const negativeTexts = negativeComments.map(c => c.content).join('');
+                let negativeTheme = '用户有一些负面反馈';
+                if (negativeTexts.includes('过敏') || negativeTexts.includes('泛红') || negativeTexts.includes('刺痛')) {
+                    negativeTheme = '不少用户反馈使用后出现过敏、泛红或刺痛等不适';
+                } else if (negativeTexts.includes('油') || negativeTexts.includes('闷痘') || negativeTexts.includes('闭口')) {
+                    negativeTheme = '用户反馈产品油腻、易闷痘或长闭口';
+                } else if (negativeTexts.includes('难用') || negativeTexts.includes('没用')) {
+                    negativeTheme = '部分用户反馈产品效果不明显或难用';
+                }
+                insights.push({
+                    type: 'negative',
+                    icon: '😔',
+                    title: '注意事项',
+                    text: `有 ${negativeComments.length} 条负面评价，${negativeTheme}。`
+                });
+            }
+
+            // 5. 使用建议
+            if (comments.length > 2) {
+                let suggestions = [];
+                const allTexts = comments.map(c => c.content).join('');
+                if (allTexts.includes('敏感') || allTexts.includes('耳后')) {
+                    suggestions.push('敏感肌建议先在耳后测试');
+                }
+                if (allTexts.includes('油皮') || allTexts.includes('混油') || allTexts.includes('油痘')) {
+                    suggestions.push('油痘肌使用时需注意可能闷痘');
+                }
+                if (allTexts.includes('夏天') || allTexts.includes('油')) {
+                    suggestions.push('夏天使用可能偏油，建议秋冬季尝试');
+                }
+                if (suggestions.length > 0) {
+                    insights.push({
+                        type: 'neutral',
+                        icon: '💡',
+                        title: '使用建议',
+                        text: suggestions.join('；') + '。'
+                    });
+                }
+            }
+
+            insightsContent.innerHTML = insights.map((insight, index) => `
+                <div class="insight-card insight-${insight.type}" style="animation-delay: ${index * 0.08}s">
+                    <div class="insight-icon">${insight.icon}</div>
+                    <div class="insight-content">
+                        <div class="insight-title">${insight.title}</div>
+                        <div class="insight-text">${insight.text}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
         function renderComments(comments) {
             const commentsList = document.getElementById('commentsList');
             if (!comments.length) {
@@ -919,6 +1086,7 @@
                 allComments = [...allComments, ...imported];
                 currentSummary = summarizeComments(allComments);
                 renderSummary('all');
+                renderInsights();
                 renderTopComments();
                 renderComments(allComments);
                 toggleImportModal();
@@ -933,6 +1101,7 @@
                 allComments = JSON.parse(JSON.stringify(defaultComments));
                 currentSummary = summarizeComments(allComments);
                 renderSummary('all');
+                renderInsights();
                 renderTopComments();
                 renderComments(allComments);
                 document.getElementById('searchInput').value = '';
@@ -944,6 +1113,7 @@
             allComments = JSON.parse(JSON.stringify(defaultComments));
             currentSummary = summarizeComments(allComments);
             renderSummary('all');
+            renderInsights();
             renderTopComments();
             renderComments(allComments);
         });
