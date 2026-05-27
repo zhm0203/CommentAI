@@ -270,41 +270,6 @@
             color: var(--muted);
         }
 
-        .keywords {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .keywords strong {
-            font-size: 14px;
-            color: var(--muted);
-            margin-right: 4px;
-        }
-
-        .keyword-tag {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 14px;
-            border-radius: 999px;
-            background: linear-gradient(135deg, rgba(255, 77, 141, 0.95) 0%, rgba(139, 92, 246, 0.95) 100%);
-            color: #fff;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.01em;
-            box-shadow: 0 10px 22px rgba(181, 83, 184, 0.18);
-            transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease);
-        }
-
-        .keyword-tag:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 14px 24px rgba(181, 83, 184, 0.22);
-        }
-
         .comments-section {
             min-height: 240px;
         }
@@ -625,10 +590,6 @@
         <div class="summary-section panel" id="summarySection">
             <div class="summary-title">📊 评论综合分析</div>
             <div id="statsGrid"></div>
-            <div class="keywords">
-                <strong>热门关键词：</strong>
-                <span id="keywords"></span>
-            </div>
         </div>
 
         <div class="comments-section panel">
@@ -693,22 +654,6 @@
             const sentimentCounts = { positive: 0, negative: 0, neutral: 0 };
             sentiments.forEach(s => sentimentCounts[s]++);
             
-            const allText = commentList.map(c => c.content).join(' ');
-            const words = [];
-            for (let i = 0; i < allText.length - 1; i++) {
-                words.push(allText.substr(i, 2));
-            }
-            
-            const stopWords = ['的', '了', '在', '是', '我', '有', '和', '就', '不', '人', '都', '一', '很', '也', '这', '那', '你', '说', '要', '会', '看', '好', '吗', '吧', '呢', '这个', '真的', '可以', '就是', '还是', '觉得', '因为', '所以', '但是', '只是', '已经', '然后', '其实', '非常', '特别', '超级', '太', '最', '更', '比较', '有点', '稍微', '真', '挺', '什么', '怎么', '为什么', '这样', '那样', '这么', '那么', '啊', '呀', '哦', '啦', '嘛', '哈'];
-            
-            const keywords = words.filter(w => !stopWords.includes(w));
-            const keywordCounts = {};
-            keywords.forEach(w => keywordCounts[w] = (keywordCounts[w] || 0) + 1);
-            
-            const topKeywords = Object.entries(keywordCounts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 10);
-            
             const total = commentList.length;
             const positive = sentimentCounts.positive;
             const negative = sentimentCounts.negative;
@@ -720,7 +665,6 @@
                 negative: negative,
                 neutral: neutral,
                 positive_rate: total > 0 ? Math.round(positive / total * 100 * 10) / 10 : 0,
-                top_keywords: topKeywords,
                 overall_sentiment: positive > negative ? 'positive' : negative > positive ? 'negative' : 'neutral'
             };
         }
@@ -728,11 +672,9 @@
         function renderSummary(activeFilter) {
             const summary = currentSummary;
             const statsGrid = document.getElementById('statsGrid');
-            const keywordsSpan = document.getElementById('keywords');
 
             if (!summary) {
                 statsGrid.innerHTML = '';
-                keywordsSpan.innerHTML = '';
                 return;
             }
 
@@ -758,10 +700,6 @@
                     <div class="stat-label">好评率</div>
                 </div>
             `;
-
-            keywordsSpan.innerHTML = summary.top_keywords.map(kw => 
-                `<span class="keyword-tag">${kw[0]} (${kw[1]})</span>`
-            ).join('');
         }
 
         function renderComments(comments) {
